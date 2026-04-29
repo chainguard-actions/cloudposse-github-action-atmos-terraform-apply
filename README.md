@@ -1,6 +1,12 @@
 # cloudposse/github-action-atmos-terraform-apply
 
-Hardened GitHub Action by [Chainguard](https://www.chainguard.dev).
+Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/cloudposse/github-action-atmos-terraform-apply](https://github.com/cloudposse/github-action-atmos-terraform-apply).
+
+## Versions
+
+| Version | Tag | Upstream commit |
+|---------|-----|-----------------|
+| v4 | [`v4`](https://github.com/chainguard-actions/github-action-atmos-terraform-apply/tree/v4) | — |
 
 ## Privacy
 
