@@ -2,5 +2,6 @@
   "owner": "cloudposse",
   "name": "github-action-atmos-terraform-apply",
   "visibility": "internal",
-  "description": "Atmos Terraform Apply"
+  "description": "Atmos Terraform Apply",
+  "block_publish": false
 }
