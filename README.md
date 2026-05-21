@@ -8,7 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
-| v4 | [`v4`](https://github.com/chainguard-actions/cloudposse--github-action-atmos-terraform-apply/tree/v4) | — |
+| v4 | [`v4`](https://github.com/chainguard-actions/cloudposse-github-action-atmos-terraform-apply/tree/v4) | — |
 
 ## Privacy
 
