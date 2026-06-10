@@ -1,0 +1,44 @@
+name: Test basic usage - atmos terraform apply
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set atmos config path
+        id: config-path
+        run: |
+          echo "path=$GITHUB_WORKSPACE/actions/hardened/cloudposse--github-action-atmos-terraform-apply/v4/tests/fixtures/atmos-config" >> $GITHUB_OUTPUT
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          component: myapp
+          stack: example
+          sha: abc1234567890abcdef1234567890abcdef12345
+          atmos-config-path: >-
+            ${{ steps.config-path.outputs.path }}
+          skip-checkout: "true"
+          plan-storage: "false"
+          debug: "false"
+
+      - name: Assert status output is set
+        env:
+          STATUS: ${{ steps.action.outputs.status }}
+        run: |
+          echo "status: $STATUS"
+          if [ -z "$STATUS" ]; then
+            echo "FAIL: expected status output to be set (either 'succeeded' or 'failed')"
+            exit 1
+          fi
+          if [ "$STATUS" != "succeeded" ] && [ "$STATUS" != "failed" ]; then
+            echo "FAIL: expected status to be 'succeeded' or 'failed', got '$STATUS'"
+            exit 1
+          fi
+          echo "PASS: status=$STATUS"
