@@ -1,6 +1,6 @@
 # cloudposse/github-action-atmos-terraform-apply
 
-Atmos Terraform Apply
+GitHub Action Atmos Terraform Apply
 
 Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/cloudposse/github-action-atmos-terraform-apply](https://github.com/cloudposse/github-action-atmos-terraform-apply).
 
