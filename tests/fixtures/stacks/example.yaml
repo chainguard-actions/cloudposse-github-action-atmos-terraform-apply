@@ -1,0 +1,10 @@
+vars:
+  stage: example
+
+components:
+  terraform:
+    mycomponent:
+      vars: {}
+      settings:
+        github:
+          actions_enabled: false

@@ -1,0 +1,36 @@
+name: Test skip-plandiff with infracost key
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up atmos config path
+        id: config-path
+        run: |
+          echo "path=$GITHUB_WORKSPACE/actions/hardened/cloudposse--github-action-atmos-terraform-apply/v7.0.0/tests/fixtures/atmos-config" >> $GITHUB_OUTPUT
+
+      - id: action
+        uses: .
+        with:
+          component: mycomponent
+          stack: example
+          sha: ${{ github.sha }}
+          atmos-config-path: >-
+            ${{ steps.config-path.outputs.path }}
+          skip-checkout: "true"
+          skip-plandiff: "true"
+          plan-storage: "false"
+          infracost-api-key: "test-infracost-key-for-coverage"
+          debug: "false"
+
+      - name: Assert action completed
+        run: |
+          echo "Action completed with skip-plandiff=true and infracost-api-key set"
+          echo "PASS"
