@@ -1,4 +1,4 @@
-name: Test Atmos Terraform Apply - Skip Plan Diff
+name: Test Atmos Terraform Apply - Actions Disabled
 on:
   workflow_dispatch:
 
@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run action with skip-plandiff enabled and actions disabled
+      - name: Run action with actions disabled for component
         id: action
         uses: .
         with:
@@ -19,18 +19,17 @@ jobs:
           atmos-config-path: >-
             ${{ github.workspace }}/tests/fixtures/atmos-config
           plan-storage: "false"
-          skip-plandiff: "true"
           debug: "false"
 
-      - name: Assert action completed with skip-plandiff
+      - name: Assert status output is empty when actions disabled
         env:
           STATUS: ${{ steps.action.outputs.status }}
         run: |
           echo "status: '$STATUS'"
           # When github-actions-enabled is false, the apply step is skipped
-          # so status output should be empty regardless of skip-plandiff setting
+          # so status output should be empty
           if [ -n "$STATUS" ] && [ "$STATUS" != "" ]; then
             echo "FAIL: expected empty status when actions disabled, got: '$STATUS'"
             exit 1
           fi
-          echo "PASS: action completed successfully with skip-plandiff=true and actions disabled"
+          echo "PASS: status is empty as expected when actions are disabled"

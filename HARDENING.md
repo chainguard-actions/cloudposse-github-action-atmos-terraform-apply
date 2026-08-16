@@ -8,63 +8,127 @@
 
 **Test Policy SHA:** `843adf9e4b8f85d0c08b27b9d0b09dd094b54702`
 
-**Harden Agent Version:** `1`
+**Harden Agent Version:** `2`
 
-Action **cloudposse--github-action-atmos-terraform-apply/v7.0.0** was hardened automatically. 41 finding(s) were identified and resolved across 3 iteration(s).
+Action **cloudposse--github-action-atmos-terraform-apply/v7.0.0** was hardened automatically. 45 finding(s) were identified and resolved across 3 iteration(s).
 
 ## Findings Fixed
 
-### script-injection (severity: high)
+### unpinned-uses (severity: high)
 
-Multiple run: blocks in action.yml directly interpolate ${{ ... }} expressions into shell commands (sub-rule a), allowing script injection by any caller of the action. Key violations: (1) 'Set atmos cli config path vars': echo "ATMOS_CLI_CONFIG_PATH=$(realpath ${{ inputs.atmos-config-path }})" >> $GITHUB_ENV — inputs.atmos-config-path interpolated directly. (2) 'Define Job Control State Variables': echo "DEBUG_ENABLED=${{ inputs.debug }}" >> $GITHUB_ENV. (3) 'Check If GitHub Actions is Enabled': if [[ "${{ fromJson(steps.atmos-settings.outputs.settings).github-actions-enabled }}" == "true" ]]. (4) 'Set atmos cli base path vars': ATMOS_BASE_PATH="${{ fromJson(steps.atmos-settings.outputs.settings).base-path }}". (5) 'Define Job Variables': STACK_NAME=$(echo "${{ inputs.stack }}" | sed ...), COMPONENT_PATH=$( realpath ${{ fromJson(...).component-path }}), RETRIEVED_PLAN_FILENAME="$COMPONENT_SLUG-${{ inputs.sha }}.planfile". (6) 'Plan prepare': if [[ -n "${{ inputs.identity }}" ]], base_cmd+=" --identity=${{ inputs.identity }}", -var "target:${{ inputs.stack }}-${{ inputs.component }}", -var "job:${{ github.job }}", atmos terraform plan ${{ inputs.component }} --stack ${{ inputs.stack }}. (7) 'Determine Plan File': if [[ "${{ inputs.skip-plandiff }}" == "true" ]]. (8) 'Check Whether Infracost is Enabled': if [[ "${{ fromJson(...).enable-infracost }}" == "true" ]]. (9) 'Convert PLANFILE to JSON': ${{ fromJson(...).command }} show -json "${{ steps.plan-file.outputs.plan_file }}" — steps output used as the shell command itself. (10) 'Generate Infracost Diff': --project-name "${{ inputs.stack }}-${{ inputs.component }}". (11) 'Debug Infracost': cat ${{ steps.vars.outputs.plan_file }}.json. (12) 'Set Infracost Variables': if [[ "${{ fromJson(...).enable-infracost }}" == "true" ]]. (13) 'Terraform Apply': ${{ inputs.skip-plandiff }}, ${{ inputs.stack }}, ${{ inputs.component }}, ${{ github.job }}, ${{ github.repository }}, ${{ github.run_id }} all interpolated directly into shell.
+action.yml uses multiple action references pinned to mutable version tags instead of immutable 40-character SHA digests. Failing references: actions/setup-node@v4, actions/checkout@v4, cloudposse/github-action-setup-atmos@v2, cloudposse/github-action-atmos-get-setting@v2, hashicorp/setup-terraform@v3, cloudposse-github-actions/install-gh-releases@v1, aws-actions/configure-aws-credentials@v4 (multiple), cloudposse/github-action-terraform-plan-storage@v1 (multiple), actions/cache@v4, infracost/actions/setup@v3.
 
 Locations:
 
-- `action.yml:72`
-- `action.yml:155`
-- `action.yml:162`
-- `action.yml:170`
-- `action.yml:177`
-- `action.yml:248`
+- `action.yml:63`
+- `action.yml:67`
+- `action.yml:75`
+- `action.yml:82`
+- `action.yml:196`
+- `action.yml:204`
+- `action.yml:213`
 - `action.yml:302`
-- `action.yml:316`
 - `action.yml:330`
-- `action.yml:340`
-- `action.yml:356`
-- `action.yml:365`
+- `action.yml:348`
 - `action.yml:380`
-
-### github-env-injection (severity: high)
-
-Multiple run: blocks write values derived from caller-controlled inputs or steps outputs to $GITHUB_ENV or $GITHUB_OUTPUT without the required sanitization (printf '%s' ... | tr -d '\n\r'): (1) 'Set atmos cli config path vars': echo "ATMOS_CLI_CONFIG_PATH=$(realpath ${{ inputs.atmos-config-path }})" >> $GITHUB_ENV — inputs.atmos-config-path written to GITHUB_ENV unsanitized. (2) 'Define Job Control State Variables': echo "DEBUG_ENABLED=${{ inputs.debug }}" >> $GITHUB_ENV — inputs.debug written to GITHUB_ENV unsanitized. (3) 'Set atmos cli base path vars': echo "ATMOS_BASE_PATH=$(realpath ${ATMOS_BASE_PATH:-./})" >> $GITHUB_ENV — ATMOS_BASE_PATH sourced from steps output written to GITHUB_ENV unsanitized. (4) 'Define Job Variables': echo "stack_name=$STACK_NAME" >> $GITHUB_OUTPUT and echo "retrieved_plan_filename=$RETRIEVED_PLAN_FILENAME" >> $GITHUB_OUTPUT — values derived from inputs.stack, inputs.component, inputs.sha written to GITHUB_OUTPUT unsanitized. (5) 'Determine Plan File': echo "plan_file=${{ steps.vars.outputs.retrieved_plan_file }}" >> $GITHUB_OUTPUT — steps output (derived from inputs) written to GITHUB_OUTPUT unsanitized. (6) 'Set Infracost Variables': echo "infracost_details_diff_breakdown=$INFRACOST_DETAILS_DIFF_BREAKDOWN" >> "$GITHUB_OUTPUT" — external tool output written to GITHUB_OUTPUT unsanitized.
-
-Locations:
-
-- `action.yml:72`
-- `action.yml:155`
-- `action.yml:170`
-- `action.yml:177`
-- `action.yml:302`
-- `action.yml:365`
+- `action.yml:545`
 
 ### unpinned-uses (severity: high)
 
-All uses: references in action.yml use mutable version tags instead of pinned 40-character SHA digests, making the action vulnerable to supply-chain attacks. Unpinned references: uses: actions/setup-node@v4, uses: actions/checkout@v4, uses: cloudposse/github-action-setup-atmos@v2, uses: cloudposse/github-action-atmos-get-setting@v2, uses: hashicorp/setup-terraform@v3, uses: cloudposse-github-actions/install-gh-releases@v1, uses: aws-actions/configure-aws-credentials@v4 (3 occurrences), uses: cloudposse/github-action-terraform-plan-storage@v1 (2 occurrences), uses: actions/cache@v4, uses: infracost/actions/setup@v3.
+Workflow files use action/workflow references pinned to mutable tags or branch names instead of immutable SHA digests. Failing references: branch.yml uses cloudposse/.github/.github/workflows/shared-github-action.yml@main; release.yml uses cloudposse/.github/.github/workflows/shared-release-branches.yml@main; scheduled.yml uses cloudposse/github-actions-workflows-terraform-module/.github/workflows/scheduled.yml@main; test-atmos_pro.yml uses actions/checkout@v4, cloudposse/github-action-atmos-terraform-plan@v5, nick-fields/assert-action@v2; test-basic.yml uses actions/checkout@v4, cloudposse/github-action-atmos-terraform-plan@v5; test-plan_diff.yml uses actions/checkout@v4, cloudposse/github-action-atmos-terraform-plan@v5; test-plan_fail.yml uses actions/checkout@v4; test-plan_storage_disabled.yml uses actions/checkout@v4.
 
 Locations:
 
-- `action.yml:65`
-- `action.yml:69`
-- `action.yml:76`
-- `action.yml:82`
-- `action.yml:131`
-- `action.yml:136`
-- `action.yml:143`
-- `action.yml:196`
-- `action.yml:210`
-- `action.yml:226`
-- `action.yml:237`
-- `action.yml:322`
+- `.github/workflows/branch.yml:12`
+- `.github/workflows/release.yml:9`
+- `.github/workflows/scheduled.yml:10`
+- `.github/workflows/test-atmos_pro.yml:27`
+- `.github/workflows/test-atmos_pro.yml:55`
+- `.github/workflows/test-atmos_pro.yml:68`
+- `.github/workflows/test-atmos_pro.yml:89`
+- `.github/workflows/test-basic.yml:27`
+- `.github/workflows/test-basic.yml:55`
+- `.github/workflows/test-plan_diff.yml:28`
+- `.github/workflows/test-plan_diff.yml:55`
+- `.github/workflows/test-plan_fail.yml:28`
+- `.github/workflows/test-plan_storage_disabled.yml:28`
+
+### script-injection (severity: high)
+
+Multiple run: blocks in action.yml directly interpolate ${{ ... }} expressions inside shell command strings (sub-rule a). This allows an attacker who controls the inputs to inject arbitrary shell commands. Affected steps and offending lines:
+- 'Set atmos cli config path vars': echo "ATMOS_CLI_CONFIG_PATH=$(realpath ${{ inputs.atmos-config-path }})" >> $GITHUB_ENV
+- 'Define Job Control State Variables': echo "DEBUG_ENABLED=${{ inputs.debug }}" >> $GITHUB_ENV
+- 'Check If GitHub Actions is Enabled For Component': if [[ "${{ fromJson(steps.atmos-settings.outputs.settings).github-actions-enabled }}" == "true" ...
+- 'Set atmos cli base path vars': ATMOS_BASE_PATH="${{ fromJson(steps.atmos-settings.outputs.settings).base-path }}"
+- 'Define Job Variables': STACK_NAME=$(echo "${{ inputs.stack }}" ...), COMPONENT_PATH=$( realpath ${{ fromJson(...).component-path }}), COMPONENT_NAME=$(echo "${{ inputs.component }}" ...), RETRIEVED_PLAN_FILENAME="...-${{ inputs.sha }}.planfile"
+- 'Plan prepare': if [[ -n "${{ inputs.identity }}" ]], -var "target:${{ inputs.stack }}-${{ inputs.component }}", atmos terraform plan ${{ inputs.component }} --stack ${{ inputs.stack }}, -out=${{ steps.vars.outputs.renewed_plan_file }}
+- 'Terraform Apply': atmos terraform deploy ${{ inputs.component }} --stack ${{ inputs.stack }}, --planfile ${{ steps.plan-file.outputs.plan_filename }}, echo "[Job](.../${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+Locations:
+
+- `action.yml:72`
+- `action.yml:231`
+- `action.yml:239`
+- `action.yml:252`
+- `action.yml:261`
+- `action.yml:265`
+- `action.yml:267`
+- `action.yml:441`
+- `action.yml:453`
+- `action.yml:455`
+- `action.yml:460`
+- `action.yml:601`
+- `action.yml:613`
+- `action.yml:617`
+- `action.yml:648`
+
+### script-injection (severity: high)
+
+run: blocks in test workflow files directly interpolate ${{ ... }} expressions inside shell command strings (sub-rule a). Offending patterns include: mkdir -p ${{ runner.temp }}, cp ./tests/${{ matrix.platform }}/atmos.yaml ${{ runner.temp }}/atmos.yaml, sed -i -e 's#__STORAGE_REGION__#${{ env.AWS_REGION }}#g', and echo "seed=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ matrix.platform }}" >> $GITHUB_OUTPUT. These allow workflow-controllable values (runner.temp, matrix.platform, env.AWS_REGION) to be interpolated directly into shell before the shell parses them.
+
+Locations:
+
+- `.github/workflows/test-basic.yml:30`
+- `.github/workflows/test-basic.yml:31`
+- `.github/workflows/test-basic.yml:34`
+- `.github/workflows/test-atmos_pro.yml:33`
+- `.github/workflows/test-atmos_pro.yml:34`
+- `.github/workflows/test-atmos_pro.yml:37`
+- `.github/workflows/test-plan_diff.yml:31`
+- `.github/workflows/test-plan_diff.yml:32`
+- `.github/workflows/test-plan_diff.yml:35`
+- `.github/workflows/test-plan_fail.yml:31`
+- `.github/workflows/test-plan_fail.yml:32`
+- `.github/workflows/test-plan_storage_disabled.yml:31`
+- `.github/workflows/test-plan_storage_disabled.yml:32`
+
+### github-env-injection (severity: high)
+
+The 'Set atmos cli config path vars' run: block writes the value of inputs.atmos-config-path directly to $GITHUB_ENV via: echo "ATMOS_CLI_CONFIG_PATH=$(realpath ${{ inputs.atmos-config-path }})" >> $GITHUB_ENV — without applying the required sanitization step (printf '%s' ... | tr -d '\n\r') before the write. A caller-controlled newline in the input value could inject arbitrary environment variables.
+
+Locations:
+
+- `action.yml:72`
+
+### github-env-injection (severity: high)
+
+The 'Define Job Control State Variables' run: block writes inputs.debug directly to $GITHUB_ENV via: echo "DEBUG_ENABLED=${{ inputs.debug }}" >> $GITHUB_ENV — without sanitization. A caller-controlled newline in the input value could inject arbitrary environment variables.
+
+Locations:
+
+- `action.yml:231`
+
+### github-env-injection (severity: high)
+
+In test workflow files, the run: block writes ${{ matrix.platform }} (a workflow-controllable value) directly to $GITHUB_OUTPUT via: echo "seed=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ matrix.platform }}" >> $GITHUB_OUTPUT — without the required sanitization step (printf '%s' ... | tr -d '\n\r'). A newline in the matrix value could inject additional output variables.
+
+Locations:
+
+- `.github/workflows/test-basic.yml:43`
+- `.github/workflows/test-atmos_pro.yml:46`
+- `.github/workflows/test-plan_diff.yml:44`
+- `.github/workflows/test-plan_fail.yml:43`
+- `.github/workflows/test-plan_storage_disabled.yml:43`
 
 ### static-inline-injection (severity: high)
 
@@ -378,25 +442,35 @@ Locations:
 
 **Notes:**
 
-Rewrote action.yml with all security fixes applied:
+Fixed all findings across action.yml and .github/workflows/ files:
 
-1. UNPINNED-USES: Pinned all 12 action references to full 40-char SHA digests (actions/setup-node, actions/checkout, cloudposse/github-action-setup-atmos, cloudposse/github-action-atmos-get-setting, hashicorp/setup-terraform, cloudposse-github-actions/install-gh-releases, aws-actions/configure-aws-credentials x3, cloudposse/github-action-terraform-plan-storage x2, actions/cache, infracost/actions/setup).
+1. **unpinned-uses**: Pinned all action references in action.yml to full 40-char SHA digests (setup-node, checkout, github-action-setup-atmos, github-action-atmos-get-setting, setup-terraform, install-gh-releases, configure-aws-credentials x3, github-action-terraform-plan-storage x2, cache, infracost/actions/setup). Pinned all workflow references in branch.yml, release.yml, scheduled.yml, and test-*.yml files.
 
-2. SCRIPT-INJECTION / STATIC-INLINE-INJECTION: Moved all ${{ inputs.* }}, ${{ github.* }}, ${{ steps.* }}, and ${{ fromJson(...) }} expressions out of run: blocks and into env: blocks. Shell scripts now reference plain environment variables ($VAR_NAME) instead of interpolated expressions.
+2. **script-injection / static-inline-injection**: Moved all ${{ inputs.* }}, ${{ fromJson(...) }}, ${{ runner.temp }}, ${{ matrix.platform }}, and ${{ env.AWS_REGION }} expressions out of run: blocks and into env: maps. Shell scripts now reference plain environment variables.
 
-3. GITHUB-ENV-INJECTION: All values derived from caller-controlled inputs or step outputs that are written to $GITHUB_ENV or $GITHUB_OUTPUT are now sanitized using `printf '%s' "$VAR" | tr -d '\n\r'` before writing, preventing newline injection attacks.
+3. **github-env-injection**: Added sanitization (printf '%s' ... | tr -d '\n\r') before writing user-controlled values to $GITHUB_ENV and $GITHUB_OUTPUT in action.yml (atmos-config-path, debug) and test workflow files (matrix.platform).
+
+Note: ${{ github.job }} was left inline in run: blocks as it is a static workflow-defined value not controllable by external actors.
 
 ### Iteration 2
 
-**Fixes applied:** script-injection
+**Fixes applied:** script-injection, github-env-injection
 
 **Notes:**
 
-Fixed two script-injection vulnerabilities in action.yml:
+Fixed all four security findings in hardened/action/action.yml:
 
-1. **$INPUT_IDENTITY / base_cmd injection (line ~330)**: In both 'Plan prepare' and 'Terraform Apply' steps, converted `base_cmd` from an unquoted string variable to a bash array (`base_cmd=()`). The identity value is now appended as a properly quoted array element (`base_cmd+=("--identity=$INPUT_IDENTITY")`), and all expansions use `"${base_cmd[@]}"` to prevent word-splitting and shell metacharacter injection. Also added `INPUT_IDENTITY: ${{ inputs.identity }}` to the Terraform Apply step's `env:` block (it was missing entirely).
+1. **github-env-injection** ('Set atmos cli base path vars' step, line ~228): Added `safe_base_path=$(printf '%s' "$(realpath ...)" | tr -d '\n\r')` before writing to $GITHUB_ENV.
 
-2. **sed metacharacter injection (line ~370)**: Added proper escaping of sed replacement metacharacters before using `$INPUT_STACK` and `$INPUT_COMPONENT` in sed substitution commands. `SAFE_COMPONENT_NAME` escapes `&` and `\` via `sed 's/[&\]/\&/g'`. `SAFE_STACK_NAME` escapes `&`, `\`, and `/` (the sed delimiter) via `sed 's/[&\]/\&/g; s|/|\\/|g'`. These safe variables are used in the sed commands instead of the raw input values.
+2. **github-env-injection** ('Define Job Variables' step, line ~255): Added a `safe()` shell helper function and wrapped all 12 `echo "key=$VALUE" >> $GITHUB_OUTPUT` writes with `$(safe "$VAR")` to strip embedded newlines/carriage-returns.
+
+3. **script-injection (a)** ('Plan prepare' step, line ~420): Moved `${{ github.job }}` out of the `run:` block into the `env:` block as `GITHUB_JOB_NAME: ${{ github.job }}`, then referenced `$GITHUB_JOB_NAME` in the shell script.
+
+4. **script-injection (b)** ('Plan prepare' step): Changed `base_cmd` string variable to a `base_cmd_args` bash array and replaced all unquoted `${base_cmd}` expansions with properly quoted `"${base_cmd_args[@]}"` to prevent shell metacharacter injection from `inputs.identity`.
+
+5. **script-injection (a)** ('Terraform Apply' step, line ~575): Same fix as #3 — moved `${{ github.job }}` to env block as `GITHUB_JOB_NAME`.
+
+6. **script-injection (b)** ('Terraform Apply' step): Added `INPUT_IDENTITY: ${{ inputs.identity }}` to the env block (it was missing), added `base_cmd_args` array construction, and replaced all unquoted `${base_cmd}` expansions with `"${base_cmd_args[@]}"`.
 
 ### Iteration 3
 
@@ -404,5 +478,5 @@ Fixed two script-injection vulnerabilities in action.yml:
 
 **Notes:**
 
-Fixed the 'Determine Plan File' step in action.yml by moving all four ${{ steps.vars.outputs.* }} expressions (retrieved_plan_file, retrieved_plan_filename, renewed_plan_file, renewed_plan_filename) from the run: block into the step's env: block as VARS_RETRIEVED_PLAN_FILE, VARS_RETRIEVED_PLAN_FILENAME, VARS_RENEWED_PLAN_FILE, and VARS_RENEWED_PLAN_FILENAME. The shell script now references these as plain environment variables, eliminating the script-injection risk from direct ${{ }} interpolation into the shell command string.
+Fixed script injection in 5 workflow files (.github/workflows/test-basic.yml, test-atmos_pro.yml, test-plan_diff.yml, test-plan_fail.yml, test-plan_storage_disabled.yml). In each file, the `${{ secrets.TERRAFORM_STATE_BUCKET }}`, `${{ secrets.TERRAFORM_STATE_TABLE }}`, `${{ secrets.TERRAFORM_STATE_ROLE }}`, and `${{ secrets.TERRAFORM_APPLY_ROLE }}` expressions were moved from inline sed substitution strings into the step's `env:` block as named environment variables (TERRAFORM_STATE_BUCKET, TERRAFORM_STATE_TABLE, TERRAFORM_STATE_ROLE, TERRAFORM_APPLY_ROLE). The sed commands were updated from single-quoted strings (which prevented variable expansion) to double-quoted strings referencing the env vars (e.g., `sed -i -e "s#__STORAGE_BUCKET__#$TERRAFORM_STATE_BUCKET#g"`). This ensures GitHub Actions template substitution never injects secret values directly into shell command strings.
 

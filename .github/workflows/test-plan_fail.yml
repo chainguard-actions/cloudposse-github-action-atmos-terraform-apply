@@ -1,0 +1,78 @@
+name: "Integration Tests - Plan Fail"
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "The fully-formed ref of the branch or tag that triggered the workflow run"
+        required: false
+        type: string
+      sha:
+        description: "The sha of the commit that triggered the workflow run"
+        required: false
+        type: string
+
+env:
+  AWS_REGION: us-east-2
+
+
+# Permissions required for assuming AWS identity
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      max-parallel: 1
+      fail-fast: false # Don't fail fast to avoid locking TF State
+      matrix:
+        platform: [terraform, opentofu]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - shell: bash
+        id: env
+        env:
+          RUNNER_TEMP: ${{ runner.temp }}
+          MATRIX_PLATFORM: ${{ matrix.platform }}
+          AWS_REGION_VAL: ${{ env.AWS_REGION }}
+          TERRAFORM_STATE_BUCKET: ${{ secrets.TERRAFORM_STATE_BUCKET }}
+          TERRAFORM_STATE_TABLE: ${{ secrets.TERRAFORM_STATE_TABLE }}
+          TERRAFORM_STATE_ROLE: ${{ secrets.TERRAFORM_STATE_ROLE }}
+          TERRAFORM_APPLY_ROLE: ${{ secrets.TERRAFORM_APPLY_ROLE }}
+        run: |
+          mkdir -p "$RUNNER_TEMP"
+          cp "./tests/$MATRIX_PLATFORM/atmos.yaml" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e 's#__INFRACOST_ENABLED__#false#g' "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_REGION__#$AWS_REGION_VAL#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_BUCKET__#$TERRAFORM_STATE_BUCKET#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_TABLE__#$TERRAFORM_STATE_TABLE#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_TABLE__#$TERRAFORM_STATE_TABLE#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_ROLE__#$TERRAFORM_STATE_ROLE#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__PLAN_ROLE__#$TERRAFORM_APPLY_ROLE#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__APPLY_ROLE__#$TERRAFORM_APPLY_ROLE#g" "$RUNNER_TEMP/atmos.yaml"
+
+          safe_platform=$(printf '%s' "$MATRIX_PLATFORM" | tr -d '\n\r')
+          echo "seed=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${safe_platform}" >> $GITHUB_OUTPUT
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Apply Atmos Component
+        uses: ./
+        with:
+          component: "foobar-plan-fail"
+          stack: "plat-ue2-sandbox"
+          atmos-config-path: ${{ runner.temp }}
+          plan-storage: false
+          debug: true
+          sha: ${{ inputs.sha }}
+        env:
+          TF_VAR_seed: ${{ steps.env.outputs.seed }}
+  
