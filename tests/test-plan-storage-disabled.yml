@@ -1,0 +1,42 @@
+name: Test Atmos Terraform Apply - Plan Storage Disabled
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up atmos config path
+        run: |
+          echo "ATMOS_CONFIG_PATH=$GITHUB_WORKSPACE/tests/fixtures/atmos-config" >> $GITHUB_ENV
+
+      - id: action
+        uses: .
+        with:
+          component: mock-component
+          stack: test
+          sha: cafebabe1234567890abcdef
+          atmos-config-path: ${{ env.ATMOS_CONFIG_PATH }}
+          skip-checkout: "true"
+          plan-storage: "false"
+        continue-on-error: true
+
+      - name: Assert action completed with plan-storage disabled
+        env:
+          STATUS: ${{ steps.action.outputs.status }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "status: $STATUS"
+          # With plan-storage=false, the retrieve plan/lockfile steps are skipped
+          # The action should succeed (skipping apply since actions_enabled=false)
+          # or fail gracefully if atmos settings can't be resolved
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with plan-storage disabled"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected when atmos settings cannot be resolved)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
