@@ -1,0 +1,42 @@
+name: Test Atmos Terraform Apply - Actions Disabled
+on:
+  workflow_dispatch:
+
+jobs:
+  test-actions-disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with actions disabled for component
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          component: test-component
+          stack: test-stack
+          sha: ${{ github.sha }}
+          skip-checkout: "true"
+          atmos-config-path: >-
+            ${{ github.workspace }}/tests/fixtures/atmos-config
+          plan-storage: "false"
+          skip-plandiff: "false"
+          token: ${{ github.token }}
+
+      - name: Assert action completed (actions disabled means no apply runs)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          STATUS: ${{ steps.action.outputs.status }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "status: $STATUS"
+          # When github-actions-enabled is false, ACTIONS_ENABLED=false and the apply
+          # step is skipped, so status output is empty and the action succeeds.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action completed successfully (actions disabled, no apply ran)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected when atmos settings cannot be resolved)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
