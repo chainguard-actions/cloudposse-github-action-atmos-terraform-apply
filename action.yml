@@ -81,12 +81,12 @@ runs:
           -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
           "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
     - name: Install Node
-      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      uses: chainguard-actions/actions-setup-node@031fc9bd73e651da81e6a7294b2af29e64d5f39c # v4
       with:
         node-version: 20
     - name: Checkout
       if: ${{ inputs.skip-checkout != 'true' }}
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      uses: chainguard-actions/actions-checkout@279383ec3b8d70f964ffa5a2151ea3d2a5317ec6 # v7
     - name: Set atmos cli config path vars
       shell: bash
       env:
@@ -96,14 +96,14 @@ runs:
         echo "ATMOS_CLI_CONFIG_PATH=$(realpath "$safe_path")" >> "$GITHUB_ENV"
     - name: Install Atmos
       if: ${{ inputs.atmos-version != '' }}
-      uses: cloudposse/github-action-setup-atmos@822766b3aaa9a3b4aa2628baaccb58dd576ad0ff # v2
+      uses: chainguard-actions/cloudposse-github-action-setup-atmos@91a92211e27a2a6bd48d103ffd97f6f9018b7070 # v2
       with:
         atmos-version: ${{ inputs.atmos-version }}
         token: ${{ inputs.token }}
         install-wrapper: false
     - name: Get atmos settings
       id: atmos-settings
-      uses: cloudposse/github-action-atmos-get-setting@45ea80b66308a31efd8014aa3aaf6e2f4862cb76 # v2
+      uses: chainguard-actions/cloudposse-github-action-atmos-get-setting@71f26794f9e32121eebcd2bdc58d7b8a9db5a6c8 # v2
       with:
         # Here we do not process-templates because that requires terraform. Which we install after fetching the version
         # processing templates here can cause an issue where cached terraform versions conflict with the version we want to install
@@ -196,7 +196,7 @@ runs:
             outputPath: cosmos-endpoint
     - name: Install Terraform
       if: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-version != '' && fromJson(steps.atmos-settings.outputs.settings).terraform-version != 'null' }}
-      uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      uses: chainguard-actions/hashicorp-setup-terraform@4308fe81059c21b22619f41b1f9f95f8da4232f5 # v3
       with:
         terraform_version: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-version }}
         terraform_wrapper: false
@@ -206,7 +206,7 @@ runs:
         cache: true
         config: "opentofu/opentofu: \n  tag: ${{ startsWith(fromJson(steps.atmos-settings.outputs.settings).opentofu-version, 'v') && fromJson(steps.atmos-settings.outputs.settings).opentofu-version || format('v{0}', fromJson(steps.atmos-settings.outputs.settings).opentofu-version) }}\n  skip: ${{ fromJson(steps.atmos-settings.outputs.settings).opentofu-version == '' || fromJson(steps.atmos-settings.outputs.settings).opentofu-version == 'null' }}\nsuzuki-shunsuke/tfcmt: v4.14.0\nterraform-docs/terraform-docs: v0.20.0"
     - name: Configure Plan AWS Credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: chainguard-actions/aws-actions-configure-aws-credentials@05c5161294fac31f72449e5671350b7bf823c91f # v4
       if: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region != '' && fromJson(steps.atmos-settings.outputs.settings).aws-region != 'null' && fromJson(steps.atmos-settings.outputs.settings).terraform-apply-role != '' && fromJson(steps.atmos-settings.outputs.settings).terraform-apply-role != 'null' }}
       with:
         aws-region: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region }}
@@ -293,7 +293,7 @@ runs:
     # This prevents plan storage credentials from interfering with Atmos auth.
     - name: Configure Plan Storage AWS Credentials
       id: plan-storage-credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: chainguard-actions/aws-actions-configure-aws-credentials@05c5161294fac31f72449e5671350b7bf823c91f # v4
       if: ${{ ( fromJson(steps.atmos-settings.outputs.settings).plan-repository-type == 's3' || fromJson(steps.atmos-settings.outputs.settings).plan-repository-type == ''  || fromJson(steps.atmos-settings.outputs.settings).plan-repository-type == 'null' ) && env.ACTIONS_ENABLED == 'true' && inputs.plan-storage == 'true' && fromJson(steps.atmos-settings.outputs.settings).aws-region != '' && fromJson(steps.atmos-settings.outputs.settings).aws-region != 'null' && fromJson(steps.atmos-settings.outputs.settings).terraform-state-role != '' && fromJson(steps.atmos-settings.outputs.settings).terraform-state-role != 'null' }}
       with:
         aws-region: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region }}
@@ -304,7 +304,7 @@ runs:
         output-env-credentials: false
     - name: Retrieve Plan
       if: ${{ env.ACTIONS_ENABLED == 'true' && inputs.plan-storage == 'true'}}
-      uses: cloudposse/github-action-terraform-plan-storage@0b13c5198170a1636557f008e1737c662ed2eb86 # v1
+      uses: chainguard-actions/cloudposse-github-action-terraform-plan-storage@0b1d5bacc29ab5f986901e7155a6edf0c111ddd9 # v1
       continue-on-error: true
       env:
         AWS_ACCESS_KEY_ID: ${{ steps.plan-storage-credentials.outputs.aws-access-key-id }}
@@ -328,7 +328,7 @@ runs:
         bucketName: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-state-bucket }}
     - name: Retrieve Lockfile
       if: ${{ env.ACTIONS_ENABLED == 'true' && inputs.plan-storage == 'true'}}
-      uses: cloudposse/github-action-terraform-plan-storage@0b13c5198170a1636557f008e1737c662ed2eb86 # v1
+      uses: chainguard-actions/cloudposse-github-action-terraform-plan-storage@0b1d5bacc29ab5f986901e7155a6edf0c111ddd9 # v1
       continue-on-error: true
       env:
         AWS_ACCESS_KEY_ID: ${{ steps.plan-storage-credentials.outputs.aws-access-key-id }}
@@ -351,7 +351,7 @@ runs:
         tableName: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-state-table }}
         bucketName: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-state-bucket }}
     - name: Configure Apply AWS Credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: chainguard-actions/aws-actions-configure-aws-credentials@05c5161294fac31f72449e5671350b7bf823c91f # v4
       if: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region != '' && fromJson(steps.atmos-settings.outputs.settings).aws-region != 'null' && fromJson(steps.atmos-settings.outputs.settings).terraform-apply-role != '' && fromJson(steps.atmos-settings.outputs.settings).terraform-apply-role != 'null' }}
       with:
         aws-region: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region }}
@@ -360,7 +360,7 @@ runs:
         mask-aws-account-id: "no"
     - name: Cache .terraform
       id: cache
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      uses: chainguard-actions/actions-cache@1a492a110f951652a0d2d3327bc20ee36867788e # v4
       if: env.ACTIONS_ENABLED == 'true'
       with:
         path: |
@@ -420,7 +420,7 @@ runs:
         fi
     - name: Setup Infracost
       if: env.INFRACOST_ENABLED == 'true' && (inputs.skip-plandiff == 'true' || steps.plan-diff.outputs.plan_changed == 'false')
-      uses: infracost/actions/setup@e9d6e6cd65e168e76b0de50ff9957d2fe8bb1832 # v3
+      uses: chainguard-actions/infracost-actions/setup@a131e514a46a6d10978192745c024a9701678205 # v3
       with:
         api-key: ${{ inputs.infracost-api-key }}
     - name: Convert PLANFILE to JSON
