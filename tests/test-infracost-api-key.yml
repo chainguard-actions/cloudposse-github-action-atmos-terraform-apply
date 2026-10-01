@@ -1,4 +1,4 @@
-name: Test Atmos Terraform Apply - Infracost API Key
+name: Test Atmos Terraform Apply - Infracost API Key Input
 on:
   workflow_dispatch:
 jobs:
@@ -16,7 +16,7 @@ jobs:
         with:
           component: mock-component
           stack: test
-          sha: deadbeef1234567890abcdef
+          sha: feedface1234567890abcdef
           atmos-config-path: ${{ env.ATMOS_CONFIG_PATH }}
           skip-checkout: "true"
           plan-storage: "false"
@@ -30,13 +30,13 @@ jobs:
         run: |
           echo "outcome: $OUTCOME"
           echo "status: $STATUS"
-          # infracost-api-key is passed; infracost setup only runs when
-          # settings.integrations.github.gitops.infracost-enabled == 'true'
-          # which requires a real atmos stack. In the harness the action
-          # will fail gracefully when atmos settings cannot be resolved,
-          # or succeed (skipping apply) when actions_enabled is false.
+          # infracost-api-key is passed but infracost is only enabled when
+          # settings.integrations.github.gitops.infracost-enabled=true in atmos settings.
+          # Since our fixture does not set that, infracost setup is skipped.
+          # The action will succeed (apply skipped due to actions disabled) or
+          # fail gracefully if atmos settings cannot be resolved.
           if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded with infracost-api-key provided"
+            echo "PASS: action succeeded with infracost-api-key input provided"
           elif [ "$OUTCOME" = "failure" ]; then
             echo "PASS: action failed gracefully (expected when atmos settings cannot be resolved)"
           else
