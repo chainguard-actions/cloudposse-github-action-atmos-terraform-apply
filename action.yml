@@ -81,12 +81,12 @@ runs:
           -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
           "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
     - name: Install Node
-      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      uses: chainguard-actions/actions-setup-node@031fc9bd73e651da81e6a7294b2af29e64d5f39c # v4
       with:
         node-version: 20
     - name: Checkout
       if: ${{ inputs.skip-checkout != 'true' }}
-      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      uses: chainguard-actions/actions-checkout@31bbccf724702f8a0dc7a3ed7db8fcca2066babc # v4
     - name: Set atmos cli config path vars
       shell: bash
       env:
@@ -96,14 +96,14 @@ runs:
         echo "ATMOS_CLI_CONFIG_PATH=$(realpath "$safe_path")" >> $GITHUB_ENV
     - name: Install Atmos
       if: ${{ inputs.atmos-version != '' }}
-      uses: cloudposse/github-action-setup-atmos@822766b3aaa9a3b4aa2628baaccb58dd576ad0ff # v2
+      uses: chainguard-actions/cloudposse-github-action-setup-atmos@91a92211e27a2a6bd48d103ffd97f6f9018b7070 # v2
       with:
         atmos-version: ${{ inputs.atmos-version }}
         token: ${{ inputs.token }}
         install-wrapper: false
     - name: Get atmos settings
       id: atmos-settings
-      uses: cloudposse/github-action-atmos-get-setting@84e8a603795613161c5f1ed766f1c16b4312926c # v2
+      uses: chainguard-actions/cloudposse-github-action-atmos-get-setting@71f26794f9e32121eebcd2bdc58d7b8a9db5a6c8 # v2
       with:
         # Here we do not process-templates because that requires terraform. Which we install after fetching the version
         # processing templates here can cause an issue where cached terraform versions conflict with the version we want to install
@@ -196,7 +196,7 @@ runs:
             outputPath: cosmos-endpoint
     - name: Install Terraform
       if: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-version != '' && fromJson(steps.atmos-settings.outputs.settings).terraform-version != 'null' }}
-      uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      uses: chainguard-actions/hashicorp-setup-terraform@4308fe81059c21b22619f41b1f9f95f8da4232f5 # v3
       with:
         terraform_version: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-version }}
         terraform_wrapper: false
@@ -206,7 +206,7 @@ runs:
         cache: true
         config: "opentofu/opentofu: \n  tag: ${{ startsWith(fromJson(steps.atmos-settings.outputs.settings).opentofu-version, 'v') && fromJson(steps.atmos-settings.outputs.settings).opentofu-version || format('v{0}', fromJson(steps.atmos-settings.outputs.settings).opentofu-version) }}\n  skip: ${{ fromJson(steps.atmos-settings.outputs.settings).opentofu-version == '' || fromJson(steps.atmos-settings.outputs.settings).opentofu-version == 'null' }}\nsuzuki-shunsuke/tfcmt: v4.14.0\nterraform-docs/terraform-docs: v0.20.0"
     - name: Configure Plan AWS Credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: chainguard-actions/aws-actions-configure-aws-credentials@05c5161294fac31f72449e5671350b7bf823c91f # v4
       if: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region != '' && fromJson(steps.atmos-settings.outputs.settings).aws-region != 'null' && fromJson(steps.atmos-settings.outputs.settings).terraform-apply-role != '' && fromJson(steps.atmos-settings.outputs.settings).terraform-apply-role != 'null' }}
       with:
         aws-region: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region }}
@@ -237,8 +237,8 @@ runs:
       if: env.ACTIONS_ENABLED == 'true'
       shell: bash
       env:
-        SETTINGS_BASE_PATH: ${{ fromJson(steps.atmos-settings.outputs.settings).base-path }}
-      run: "# Set ATMOS_BASE_PATH allow `cloudposse/utils` provider to read atmos config from the correct path \nATMOS_BASE_PATH=\"$SETTINGS_BASE_PATH\"\nsafe_base_path=$(printf '%s' \"$(realpath \"${ATMOS_BASE_PATH:-./}\")\" | tr -d '\\n\\r')\necho \"ATMOS_BASE_PATH=$safe_base_path\" >> $GITHUB_ENV"
+        ATMOS_SETTINGS_BASE_PATH: ${{ fromJson(steps.atmos-settings.outputs.settings).base-path }}
+      run: "# Set ATMOS_BASE_PATH allow `cloudposse/utils` provider to read atmos config from the correct path \nATMOS_BASE_PATH=\"$ATMOS_SETTINGS_BASE_PATH\"\nsafe_base_path=$(printf '%s' \"$(realpath \"${ATMOS_BASE_PATH:-./}\")\" | tr -d '\\n\\r')\necho \"ATMOS_BASE_PATH=$safe_base_path\" >> $GITHUB_ENV"
     - name: Define Job Variables
       if: env.ACTIONS_ENABLED == 'true'
       id: vars
@@ -247,40 +247,40 @@ runs:
         INPUT_STACK: ${{ inputs.stack }}
         INPUT_COMPONENT: ${{ inputs.component }}
         INPUT_SHA: ${{ inputs.sha }}
-        SETTINGS_COMPONENT_PATH: ${{ fromJson(steps.atmos-settings.outputs.settings).component-path }}
+        ATMOS_COMPONENT_PATH: ${{ fromJson(steps.atmos-settings.outputs.settings).component-path }}
       run: |
-        STACK_NAME=$(echo "$INPUT_STACK" | sed 's#/#_#g')
-        COMPONENT_PATH=$( realpath "$SETTINGS_COMPONENT_PATH")
-        COMPONENT_NAME=$(echo "$INPUT_COMPONENT" | sed 's#/#_#g')
+        STACK_NAME=$(printf '%s' "$INPUT_STACK" | tr -d '\n\r' | sed 's#/#_#g')
+        COMPONENT_PATH=$(realpath "$ATMOS_COMPONENT_PATH")
+        COMPONENT_NAME=$(printf '%s' "$INPUT_COMPONENT" | tr -d '\n\r' | sed 's#/#_#g')
         COMPONENT_SLUG="$STACK_NAME-$COMPONENT_NAME"
-        COMPONENT_CACHE_KEY=$(basename "$SETTINGS_COMPONENT_PATH")
+        COMPONENT_CACHE_KEY=$(basename "$ATMOS_COMPONENT_PATH")
         PLAN_FILENAME="$COMPONENT_SLUG.planfile"
         PLAN_FILE="${COMPONENT_PATH}/${PLAN_FILENAME}"
-        RETRIEVED_PLAN_FILENAME="$COMPONENT_SLUG-$INPUT_SHA.planfile"
+        SAFE_SHA=$(printf '%s' "$INPUT_SHA" | tr -d '\n\r')
+        RETRIEVED_PLAN_FILENAME="$COMPONENT_SLUG-$SAFE_SHA.planfile"
         RETRIEVED_PLAN_FILE="${COMPONENT_PATH}/${RETRIEVED_PLAN_FILENAME}"
         RENEWED_PLAN_FILENAME="new.${RETRIEVED_PLAN_FILENAME}"
         RENEWED_PLAN_FILE="${COMPONENT_PATH}/${RENEWED_PLAN_FILENAME}"
         LOCK_FILE="${COMPONENT_PATH}/.terraform.lock.hcl"
 
-        safe() { printf '%s' "$1" | tr -d '\n\r'; }
-        echo "stack_name=$(safe "$STACK_NAME")" >> $GITHUB_OUTPUT
-        echo "component_name=$(safe "$COMPONENT_NAME")" >> $GITHUB_OUTPUT
-        echo "component_slug=$(safe "$COMPONENT_SLUG")" >> $GITHUB_OUTPUT
-        echo "component_path=$(safe "$COMPONENT_PATH")" >> $GITHUB_OUTPUT
-        echo "cache-key=$(safe "$COMPONENT_CACHE_KEY")" >> $GITHUB_OUTPUT
-        echo "plan_filename=$(safe "$PLAN_FILENAME")" >> $GITHUB_OUTPUT
-        echo "plan_file=$(safe "$PLAN_FILE")" >> $GITHUB_OUTPUT
-        echo "retrieved_plan_filename=$(safe "$RETRIEVED_PLAN_FILENAME")" >> $GITHUB_OUTPUT
-        echo "retrieved_plan_file=$(safe "$RETRIEVED_PLAN_FILE")" >> $GITHUB_OUTPUT
-        echo "renewed_plan_filename=$(safe "$RENEWED_PLAN_FILENAME")" >> $GITHUB_OUTPUT
-        echo "renewed_plan_file=$(safe "$RENEWED_PLAN_FILE")" >> $GITHUB_OUTPUT
-        echo "lock_file=$(safe "$LOCK_FILE")" >> $GITHUB_OUTPUT
+        printf '%s' "$STACK_NAME" | tr -d '\n\r' | { read -r v; echo "stack_name=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$COMPONENT_NAME" | tr -d '\n\r' | { read -r v; echo "component_name=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$COMPONENT_SLUG" | tr -d '\n\r' | { read -r v; echo "component_slug=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$COMPONENT_PATH" | tr -d '\n\r' | { read -r v; echo "component_path=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$COMPONENT_CACHE_KEY" | tr -d '\n\r' | { read -r v; echo "cache-key=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$PLAN_FILENAME" | tr -d '\n\r' | { read -r v; echo "plan_filename=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$PLAN_FILE" | tr -d '\n\r' | { read -r v; echo "plan_file=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$RETRIEVED_PLAN_FILENAME" | tr -d '\n\r' | { read -r v; echo "retrieved_plan_filename=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$RETRIEVED_PLAN_FILE" | tr -d '\n\r' | { read -r v; echo "retrieved_plan_file=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$RENEWED_PLAN_FILENAME" | tr -d '\n\r' | { read -r v; echo "renewed_plan_filename=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$RENEWED_PLAN_FILE" | tr -d '\n\r' | { read -r v; echo "renewed_plan_file=$v"; } >> $GITHUB_OUTPUT
+        printf '%s' "$LOCK_FILE" | tr -d '\n\r' | { read -r v; echo "lock_file=$v"; } >> $GITHUB_OUTPUT
     # Configure Plan Storage AWS Credentials with output-only mode to avoid polluting
     # the environment. Credentials are passed explicitly to subsequent steps that need them.
     # This prevents plan storage credentials from interfering with Atmos auth.
     - name: Configure Plan Storage AWS Credentials
       id: plan-storage-credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: chainguard-actions/aws-actions-configure-aws-credentials@05c5161294fac31f72449e5671350b7bf823c91f # v4
       if: ${{ ( fromJson(steps.atmos-settings.outputs.settings).plan-repository-type == 's3' || fromJson(steps.atmos-settings.outputs.settings).plan-repository-type == ''  || fromJson(steps.atmos-settings.outputs.settings).plan-repository-type == 'null' ) && env.ACTIONS_ENABLED == 'true' && inputs.plan-storage == 'true' && fromJson(steps.atmos-settings.outputs.settings).aws-region != '' && fromJson(steps.atmos-settings.outputs.settings).aws-region != 'null' && fromJson(steps.atmos-settings.outputs.settings).terraform-state-role != '' && fromJson(steps.atmos-settings.outputs.settings).terraform-state-role != 'null' }}
       with:
         aws-region: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region }}
@@ -291,7 +291,7 @@ runs:
         output-env-credentials: false
     - name: Retrieve Plan
       if: ${{ env.ACTIONS_ENABLED == 'true' && inputs.plan-storage == 'true'}}
-      uses: cloudposse/github-action-terraform-plan-storage@0b13c5198170a1636557f008e1737c662ed2eb86 # v1
+      uses: chainguard-actions/cloudposse-github-action-terraform-plan-storage@0b1d5bacc29ab5f986901e7155a6edf0c111ddd9 # v1
       continue-on-error: true
       env:
         AWS_ACCESS_KEY_ID: ${{ steps.plan-storage-credentials.outputs.aws-access-key-id }}
@@ -315,7 +315,7 @@ runs:
         bucketName: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-state-bucket }}
     - name: Retrieve Lockfile
       if: ${{ env.ACTIONS_ENABLED == 'true' && inputs.plan-storage == 'true'}}
-      uses: cloudposse/github-action-terraform-plan-storage@0b13c5198170a1636557f008e1737c662ed2eb86 # v1
+      uses: chainguard-actions/cloudposse-github-action-terraform-plan-storage@0b1d5bacc29ab5f986901e7155a6edf0c111ddd9 # v1
       continue-on-error: true
       env:
         AWS_ACCESS_KEY_ID: ${{ steps.plan-storage-credentials.outputs.aws-access-key-id }}
@@ -338,7 +338,7 @@ runs:
         tableName: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-state-table }}
         bucketName: ${{ fromJson(steps.atmos-settings.outputs.settings).terraform-state-bucket }}
     - name: Configure Apply AWS Credentials
-      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      uses: chainguard-actions/aws-actions-configure-aws-credentials@05c5161294fac31f72449e5671350b7bf823c91f # v4
       if: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region != '' && fromJson(steps.atmos-settings.outputs.settings).aws-region != 'null' && fromJson(steps.atmos-settings.outputs.settings).terraform-apply-role != '' && fromJson(steps.atmos-settings.outputs.settings).terraform-apply-role != 'null' }}
       with:
         aws-region: ${{ fromJson(steps.atmos-settings.outputs.settings).aws-region }}
@@ -347,7 +347,7 @@ runs:
         mask-aws-account-id: "no"
     - name: Cache .terraform
       id: cache
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      uses: chainguard-actions/actions-cache@1a492a110f951652a0d2d3327bc20ee36867788e # v4
       if: env.ACTIONS_ENABLED == 'true'
       with:
         path: |
@@ -361,34 +361,38 @@ runs:
         INPUT_IDENTITY: ${{ inputs.identity }}
         INPUT_STACK: ${{ inputs.stack }}
         INPUT_COMPONENT: ${{ inputs.component }}
-        INPUT_BRANDING_LOGO_IMAGE: ${{ inputs.branding-logo-image }}
-        INPUT_BRANDING_LOGO_URL: ${{ inputs.branding-logo-url }}
         INPUT_DEBUG: ${{ inputs.debug }}
         INPUT_PLAN_STORAGE: ${{ inputs.plan-storage }}
-        RENEWED_PLAN_FILE: ${{ steps.vars.outputs.renewed_plan_file }}
-        RETRIEVED_PLAN_FILENAME: ${{ steps.vars.outputs.retrieved_plan_filename }}
-        RENEWED_PLAN_FILENAME: ${{ steps.vars.outputs.renewed_plan_filename }}
+        INPUT_BRANDING_LOGO_IMAGE: ${{ inputs.branding-logo-image }}
+        INPUT_BRANDING_LOGO_URL: ${{ inputs.branding-logo-url }}
+        VARS_RENEWED_PLAN_FILE: ${{ steps.vars.outputs.renewed_plan_file }}
+        VARS_RETRIEVED_PLAN_FILENAME: ${{ steps.vars.outputs.retrieved_plan_filename }}
+        VARS_RENEWED_PLAN_FILENAME: ${{ steps.vars.outputs.renewed_plan_filename }}
         GITHUB_JOB_NAME: ${{ github.job }}
-      run: "set +e\n\n# Remove the environment file from the cache to avoid conflicts with workspace select\nrm -f ./.terraform/environment\n\nTERRAFORM_PLAN_OUTPUT_FILE=\"./terraform-${GITHUB_RUN_ID}-plan-output.txt\"\n\nbase_cmd_args=()\n\nif [[ -n \"$INPUT_IDENTITY\" ]]; then\n  base_cmd_args+=(--identity=\"$INPUT_IDENTITY\")\nfi\n\n\ntfcmt \\\n  --config \"${GITHUB_ACTION_PATH}/config/atmos_plan_summary.yaml\" \\\n  -var \"target:$INPUT_STACK-$INPUT_COMPONENT\" \\\n  -var \"component:$INPUT_COMPONENT\" \\\n  -var \"stack:$INPUT_STACK\" \\\n  -var \"job:$GITHUB_JOB_NAME\" \\\n  -var \"logoImage:$INPUT_BRANDING_LOGO_IMAGE\" \\\n  -var \"logoUrl:$INPUT_BRANDING_LOGO_URL\" \\\n  --output \"${GITHUB_WORKSPACE}/atmos-plan-summary.md\" \\\n  --log-level $([[ \"$INPUT_DEBUG\" == \"true\" ]] && echo \"DEBUG\" || echo \"INFO\") \\\n  apply -- \\\n    atmos terraform plan \"$INPUT_COMPONENT\" \\\n    --stack \"$INPUT_STACK\" \\\n    \"${base_cmd_args[@]}\" \\\n    -input=false \\\n    -no-color \\\n    -out=\"$RENEWED_PLAN_FILE\" \\\n&> ${TERRAFORM_PLAN_OUTPUT_FILE}\n\nPLAN_CHANGED=$?\n\ncat ${TERRAFORM_PLAN_OUTPUT_FILE}\n\nif [[ \"${PLAN_CHANGED}\" != \"0\" ]]; then\n  mv ${GITHUB_WORKSPACE}/atmos-plan-summary.md ${GITHUB_WORKSPACE}/atmos-apply-summary.md\n  cat ./atmos-apply-summary.md >> $GITHUB_STEP_SUMMARY\n  exit 1\nfi\n\nTERRAFORM_PLAN_DIFF_OUTPUT_FILE=\"./terraform-${GITHUB_RUN_ID}-plan-diff-output.txt\"\n\nif [[ \"$INPUT_PLAN_STORAGE\" == \"true\" ]]; then\n\n  atmos terraform plan-diff \"$INPUT_COMPONENT\" \\\n    --stack \"$INPUT_STACK\" \\\n    \"${base_cmd_args[@]}\" \\\n    -input=false \\\n    -no-color \\\n    --orig \"$RETRIEVED_PLAN_FILENAME\" \\\n    --new \"$RENEWED_PLAN_FILENAME\" \\\n    --skip-init \\\n  > ${TERRAFORM_PLAN_DIFF_OUTPUT_FILE}\n  \n  PLAN_CHANGED=$?\nfi\n\nif [[ \"${PLAN_CHANGED}\" == \"0\" ]]; then\n  echo \"plan_changed=false\" >> $GITHUB_OUTPUT\nelse\n  echo \"plan_changed=true\" >> $GITHUB_OUTPUT\n  cp ${GITHUB_ACTION_PATH}/config/atmos_plan_diff_github_summary.md ./atmos-apply-summary.md\n  COMPONENT_NAME=$(echo \"$INPUT_COMPONENT\" | sed 's#/#\\\\/#g')\n  sed -i \"s/{{COMPONENT_NAME}}/${COMPONENT_NAME}/g\" ./atmos-apply-summary.md\n  sed -i \"s/{{STACK_NAME}}/$INPUT_STACK/g\" ./atmos-apply-summary.md\n  sed -i -e \"/{{DIFF}}/ {r ${TERRAFORM_PLAN_DIFF_OUTPUT_FILE}\" -e 'd}' ./atmos-apply-summary.md\n  cat ./atmos-apply-summary.md >> $GITHUB_STEP_SUMMARY\n\n  exit 1 \nfi\n"
+      run: "set +e\n\n# Remove the environment file from the cache to avoid conflicts with workspace select\nrm -f ./.terraform/environment\n\nTERRAFORM_PLAN_OUTPUT_FILE=\"./terraform-${GITHUB_RUN_ID}-plan-output.txt\"\n\nbase_cmd=()\n\nif [[ -n \"$INPUT_IDENTITY\" ]]; then\n  base_cmd+=(\"--identity=$INPUT_IDENTITY\")\nfi\n\n\ntfcmt \\\n  --config \"${GITHUB_ACTION_PATH}/config/atmos_plan_summary.yaml\" \\\n  -var \"target:$INPUT_STACK-$INPUT_COMPONENT\" \\\n  -var \"component:$INPUT_COMPONENT\" \\\n  -var \"stack:$INPUT_STACK\" \\\n  -var \"job:$GITHUB_JOB_NAME\" \\\n  -var \"logoImage:$INPUT_BRANDING_LOGO_IMAGE\" \\\n  -var \"logoUrl:$INPUT_BRANDING_LOGO_URL\" \\\n  --output \"${GITHUB_WORKSPACE}/atmos-plan-summary.md\" \\\n  --log-level $([[ \"$INPUT_DEBUG\" == \"true\" ]] && echo \"DEBUG\" || echo \"INFO\") \\\n  apply -- \\\n    atmos terraform plan \"$INPUT_COMPONENT\" \\\n    --stack \"$INPUT_STACK\" \\\n    \"${base_cmd[@]}\" \\\n    -input=false \\\n    -no-color \\\n    -out=\"$VARS_RENEWED_PLAN_FILE\" \\\n&> ${TERRAFORM_PLAN_OUTPUT_FILE}\n\nPLAN_CHANGED=$?\n\ncat ${TERRAFORM_PLAN_OUTPUT_FILE}\n\nif [[ \"${PLAN_CHANGED}\" != \"0\" ]]; then\n  mv ${GITHUB_WORKSPACE}/atmos-plan-summary.md ${GITHUB_WORKSPACE}/atmos-apply-summary.md\n  cat ./atmos-apply-summary.md >> $GITHUB_STEP_SUMMARY\n  exit 1\nfi\n\nTERRAFORM_PLAN_DIFF_OUTPUT_FILE=\"./terraform-${GITHUB_RUN_ID}-plan-diff-output.txt\"\n\nif [[ \"$INPUT_PLAN_STORAGE\" == \"true\" ]]; then\n\n  atmos terraform plan-diff \"$INPUT_COMPONENT\" \\\n    --stack \"$INPUT_STACK\" \\\n    \"${base_cmd[@]}\" \\\n    -input=false \\\n    -no-color \\\n    --orig \"$VARS_RETRIEVED_PLAN_FILENAME\" \\\n    --new \"$VARS_RENEWED_PLAN_FILENAME\" \\\n    --skip-init \\\n  > ${TERRAFORM_PLAN_DIFF_OUTPUT_FILE}\n  \n  PLAN_CHANGED=$?\nfi\n\nif [[ \"${PLAN_CHANGED}\" == \"0\" ]]; then\n  echo \"plan_changed=false\" >> $GITHUB_OUTPUT\nelse\n  echo \"plan_changed=true\" >> $GITHUB_OUTPUT\n  cp ${GITHUB_ACTION_PATH}/config/atmos_plan_diff_github_summary.md ./atmos-apply-summary.md\n  COMPONENT_NAME=$(printf '%s' \"$INPUT_COMPONENT\" | sed 's#/#\\\\/#g')\n  STACK_NAME=$(printf '%s' \"$INPUT_STACK\" | tr -d '\\n\\r')\n  sed -i \"s/{{COMPONENT_NAME}}/${COMPONENT_NAME}/g\" ./atmos-apply-summary.md\n  sed -i \"s/{{STACK_NAME}}/${STACK_NAME}/g\" ./atmos-apply-summary.md\n  sed -i -e \"/{{DIFF}}/ {r ${TERRAFORM_PLAN_DIFF_OUTPUT_FILE}\" -e 'd}' ./atmos-apply-summary.md\n  cat ./atmos-apply-summary.md >> $GITHUB_STEP_SUMMARY\n\n  exit 1 \nfi\n"
     - name: Determine Plan File
       if: env.ACTIONS_ENABLED == 'true'
       id: plan-file
       shell: bash
       env:
         INPUT_SKIP_PLANDIFF: ${{ inputs.skip-plandiff }}
-        RETRIEVED_PLAN_FILE: ${{ steps.vars.outputs.retrieved_plan_file }}
-        RETRIEVED_PLAN_FILENAME: ${{ steps.vars.outputs.retrieved_plan_filename }}
-        RENEWED_PLAN_FILE: ${{ steps.vars.outputs.renewed_plan_file }}
-        RENEWED_PLAN_FILENAME: ${{ steps.vars.outputs.renewed_plan_filename }}
+        VARS_RETRIEVED_PLAN_FILE: ${{ steps.vars.outputs.retrieved_plan_file }}
+        VARS_RETRIEVED_PLAN_FILENAME: ${{ steps.vars.outputs.retrieved_plan_filename }}
+        VARS_RENEWED_PLAN_FILE: ${{ steps.vars.outputs.renewed_plan_file }}
+        VARS_RENEWED_PLAN_FILENAME: ${{ steps.vars.outputs.renewed_plan_filename }}
       run: |
         if [[ "$INPUT_SKIP_PLANDIFF" == "true" ]]; then
           # When skipping plan-diff, use the retrieved plan file
-          echo "plan_file=$RETRIEVED_PLAN_FILE" >> $GITHUB_OUTPUT
-          echo "plan_filename=$RETRIEVED_PLAN_FILENAME" >> $GITHUB_OUTPUT
+          safe_pf=$(printf '%s' "$VARS_RETRIEVED_PLAN_FILE" | tr -d '\n\r')
+          safe_pfn=$(printf '%s' "$VARS_RETRIEVED_PLAN_FILENAME" | tr -d '\n\r')
+          echo "plan_file=$safe_pf" >> $GITHUB_OUTPUT
+          echo "plan_filename=$safe_pfn" >> $GITHUB_OUTPUT
         else
           # When running plan-diff, use the renewed plan file
-          echo "plan_file=$RENEWED_PLAN_FILE" >> $GITHUB_OUTPUT
-          echo "plan_filename=$RENEWED_PLAN_FILENAME" >> $GITHUB_OUTPUT
+          safe_pf=$(printf '%s' "$VARS_RENEWED_PLAN_FILE" | tr -d '\n\r')
+          safe_pfn=$(printf '%s' "$VARS_RENEWED_PLAN_FILENAME" | tr -d '\n\r')
+          echo "plan_file=$safe_pf" >> $GITHUB_OUTPUT
+          echo "plan_filename=$safe_pfn" >> $GITHUB_OUTPUT
         fi
     - name: Check Whether Infracost is Enabled
       if: env.ACTIONS_ENABLED == 'true' && (inputs.skip-plandiff == 'true' || steps.plan-diff.outputs.plan_changed == 'false')
@@ -403,7 +407,7 @@ runs:
         fi
     - name: Setup Infracost
       if: env.INFRACOST_ENABLED == 'true' && (inputs.skip-plandiff == 'true' || steps.plan-diff.outputs.plan_changed == 'false')
-      uses: infracost/actions/setup@e9d6e6cd65e168e76b0de50ff9957d2fe8bb1832 # v3
+      uses: chainguard-actions/infracost-actions/setup@a131e514a46a6d10978192745c024a9701678205 # v3
       with:
         api-key: ${{ inputs.infracost-api-key }}
     - name: Convert PLANFILE to JSON
@@ -413,9 +417,9 @@ runs:
       env:
         ATMOS_COMMAND: ${{ fromJson(steps.atmos-settings.outputs.settings).command }}
         PLAN_FILE_PATH: ${{ steps.plan-file.outputs.plan_file }}
-        PLAN_FILE_OUT: ${{ steps.vars.outputs.plan_file }}
+        VARS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
       run: |
-        "$ATMOS_COMMAND" show -json "$PLAN_FILE_PATH" > "$PLAN_FILE_OUT.json"
+        "$ATMOS_COMMAND" show -json "$PLAN_FILE_PATH" > "$VARS_PLAN_FILE.json"
     - name: Generate Infracost Diff
       if: env.INFRACOST_ENABLED == 'true' && (inputs.skip-plandiff == 'true' || steps.plan-diff.outputs.plan_changed == 'false')
       shell: bash
@@ -423,15 +427,15 @@ runs:
       env:
         INPUT_STACK: ${{ inputs.stack }}
         INPUT_COMPONENT: ${{ inputs.component }}
-        PLAN_FILE_OUT: ${{ steps.vars.outputs.plan_file }}
+        VARS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
       run: |
         infracost diff \
-          --path="$PLAN_FILE_OUT.json" \
+          --path="$VARS_PLAN_FILE.json" \
           --format=diff \
           --project-name "$INPUT_STACK-$INPUT_COMPONENT" \
           --out-file=/tmp/infracost.txt
         infracost diff \
-          --path="$PLAN_FILE_OUT.json" \
+          --path="$VARS_PLAN_FILE.json" \
           --format=json \
           --project-name "$INPUT_STACK-$INPUT_COMPONENT" \
           --out-file=/tmp/infracost.json
@@ -440,9 +444,9 @@ runs:
       shell: bash
       working-directory: ${{ steps.vars.outputs.component_path }}
       env:
-        PLAN_FILE_OUT: ${{ steps.vars.outputs.plan_file }}
+        VARS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
       run: |
-        cat "$PLAN_FILE_OUT.json"
+        cat "$VARS_PLAN_FILE.json"
         cat /tmp/infracost.txt
         cat /tmp/infracost.json
     - name: Set Infracost Variables
@@ -468,18 +472,18 @@ runs:
       id: apply
       shell: bash
       env:
-        INPUT_IDENTITY: ${{ inputs.identity }}
         INPUT_SKIP_PLANDIFF: ${{ inputs.skip-plandiff }}
         INPUT_STACK: ${{ inputs.stack }}
         INPUT_COMPONENT: ${{ inputs.component }}
+        INPUT_DEBUG: ${{ inputs.debug }}
         INPUT_BRANDING_LOGO_IMAGE: ${{ inputs.branding-logo-image }}
         INPUT_BRANDING_LOGO_URL: ${{ inputs.branding-logo-url }}
-        INPUT_DEBUG: ${{ inputs.debug }}
-        PLAN_FILENAME: ${{ steps.plan-file.outputs.plan_filename }}
-        INFRACOST_DETAILS_DIFF_BREAKDOWN: ${{ steps.infracost-diff.outputs.infracost_details_diff_breakdown }}
-        INFRACOST_DIFF_TOTAL_MONTHLY_COST: ${{ steps.infracost-diff.outputs.infracost_diff_total_monthly_cost }}
-        COMPONENT_PATH: ${{ steps.vars.outputs.component_path }}
+        INPUT_IDENTITY: ${{ inputs.identity }}
+        VARS_COMPONENT_PATH: ${{ steps.vars.outputs.component_path }}
+        PLAN_FILE_FILENAME: ${{ steps.plan-file.outputs.plan_filename }}
+        INFRACOST_DETAILS: ${{ steps.infracost-diff.outputs.infracost_details_diff_breakdown }}
+        INFRACOST_MONTHLY_COST: ${{ steps.infracost-diff.outputs.infracost_diff_total_monthly_cost }}
+        GITHUB_JOB_NAME: ${{ github.job }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         GITHUB_RUN_ID_VAL: ${{ github.run_id }}
-        GITHUB_JOB_NAME: ${{ github.job }}
-      run: "set +e\n\n# Remove the environment file from the cache to avoid conflicts with workspace select\nrm -f ./.terraform/environment\n\nTERRAFORM_OUTPUT_FILE=\"./terraform-${GITHUB_RUN_ID}-output.txt\"\n\nbase_cmd_args=()\nif [[ -n \"$INPUT_IDENTITY\" ]]; then\n  base_cmd_args+=(--identity=\"$INPUT_IDENTITY\")\nfi\n\n# Only skip init if plan-diff ran (which already did init)\nSKIP_INIT_FLAG=\"\"\nif [[ \"$INPUT_SKIP_PLANDIFF\" != \"true\" ]]; then\n  SKIP_INIT_FLAG=\"--skip-init\"\nfi\n\ntfcmt \\\n  --config \"${GITHUB_ACTION_PATH}/config/atmos_github_summary.yaml\" \\\n  -var \"target:$INPUT_STACK-$INPUT_COMPONENT\" \\\n  -var \"component:$INPUT_COMPONENT\" \\\n  -var \"stack:$INPUT_STACK\" \\\n  -var \"job:$GITHUB_JOB_NAME\" \\\n  -var \"infracost_details_diff_breakdown:$INFRACOST_DETAILS_DIFF_BREAKDOWN\" \\\n  -var \"infracost_total_monthly_cost:$INFRACOST_DIFF_TOTAL_MONTHLY_COST\" \\\n  -var \"logoImage:$INPUT_BRANDING_LOGO_IMAGE\" \\\n  -var \"logoUrl:$INPUT_BRANDING_LOGO_URL\" \\\n  --output \"${GITHUB_WORKSPACE}/atmos-apply-summary.md\" \\\n  --log-level $([[ \"$INPUT_DEBUG\" == \"true\" ]] && echo \"DEBUG\" || echo \"INFO\") \\\n  apply -- \\\n    atmos terraform deploy \"$INPUT_COMPONENT\" \\\n    --stack \"$INPUT_STACK\" \\\n    \"${base_cmd_args[@]}\" \\\n    -input=false \\\n    -no-color \\\n    --planfile \"$PLAN_FILENAME\" \\\n    ${SKIP_INIT_FLAG} \\\n&> ${TERRAFORM_OUTPUT_FILE}\n\nTERRAFORM_RESULT=$?\n\nset -e\n        \ncat \"${TERRAFORM_OUTPUT_FILE}\"\natmos terraform output \"$INPUT_COMPONENT\" \\\n  --stack \"$INPUT_STACK\" \\\n  \"${base_cmd_args[@]}\" \\\n  --skip-init -- -json -compact-warnings -no-color  | \\\n  grep -v 'Switched to workspace' | \\\n  awk '$1~/^Warnings:$/ {exit} {print}' | \\\n  grep -v 'WARN detected' 1> \"$COMPONENT_PATH/output_values.json\"        \n\ncd \"$COMPONENT_PATH\"\nterraform-docs -c ${GITHUB_ACTION_PATH}/config/tfdocs-config.yaml --output-file ${GITHUB_WORKSPACE}/atmos-apply-summary.md ./\ncd -\n\nsed -i \"s#\\`<sensitive>\\`#![Sensitive](https://img.shields.io/badge/sensitive-c40000?style=for-the-badge)#g\" ${GITHUB_WORKSPACE}/atmos-apply-summary.md\nsed -i \"s#\\`\\\"#\\`#g\" ${GITHUB_WORKSPACE}/atmos-apply-summary.md\nsed -i \"s#\\\"\\`#\\`#g\" ${GITHUB_WORKSPACE}/atmos-apply-summary.md\nsed -i \"s#|--#|:-#g\" ${GITHUB_WORKSPACE}/atmos-apply-summary.md\n\ncat \"${GITHUB_WORKSPACE}/atmos-apply-summary.md\" >> $GITHUB_STEP_SUMMARY\n\nif [[ \"${TERRAFORM_RESULT}\" == \"0\" ]]; then\n  echo \"status=succeeded\" >> $GITHUB_OUTPUT\n  echo \"Terraform apply executed successfully\"\nelse\n  echo \"status=failed\" >> $GITHUB_OUTPUT\n  echo \"Terraform apply failed\"\nfi\n\n# Link to a job that executed this action\necho \"[Job](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID_VAL)\" >> \"${GITHUB_WORKSPACE}/atmos-apply-summary.md\"\n\nrm -f ${TERRAFORM_OUTPUT_FILE}\n\nexit $TERRAFORM_RESULT\n"
+      run: "set +e\n\n# Remove the environment file from the cache to avoid conflicts with workspace select\nrm -f ./.terraform/environment\n\nTERRAFORM_OUTPUT_FILE=\"./terraform-${GITHUB_RUN_ID}-output.txt\"\n\n# Only skip init if plan-diff ran (which already did init)\nSKIP_INIT_FLAG=\"\"\nif [[ \"$INPUT_SKIP_PLANDIFF\" != \"true\" ]]; then\n  SKIP_INIT_FLAG=\"--skip-init\"\nfi\n\nbase_cmd=()\nif [[ -n \"$INPUT_IDENTITY\" ]]; then\n  base_cmd+=(\"--identity=$INPUT_IDENTITY\")\nfi\n\ntfcmt \\\n  --config \"${GITHUB_ACTION_PATH}/config/atmos_github_summary.yaml\" \\\n  -var \"target:$INPUT_STACK-$INPUT_COMPONENT\" \\\n  -var \"component:$INPUT_COMPONENT\" \\\n  -var \"stack:$INPUT_STACK\" \\\n  -var \"job:$GITHUB_JOB_NAME\" \\\n  -var \"infracost_details_diff_breakdown:$INFRACOST_DETAILS\" \\\n  -var \"infracost_total_monthly_cost:$INFRACOST_MONTHLY_COST\" \\\n  -var \"logoImage:$INPUT_BRANDING_LOGO_IMAGE\" \\\n  -var \"logoUrl:$INPUT_BRANDING_LOGO_URL\" \\\n  --output \"${GITHUB_WORKSPACE}/atmos-apply-summary.md\" \\\n  --log-level $([[ \"$INPUT_DEBUG\" == \"true\" ]] && echo \"DEBUG\" || echo \"INFO\") \\\n  apply -- \\\n    atmos terraform deploy \"$INPUT_COMPONENT\" \\\n    --stack \"$INPUT_STACK\" \\\n    \"${base_cmd[@]}\" \\\n    -input=false \\\n    -no-color \\\n    --planfile \"$PLAN_FILE_FILENAME\" \\\n    ${SKIP_INIT_FLAG} \\\n&> ${TERRAFORM_OUTPUT_FILE}\n\nTERRAFORM_RESULT=$?\n\nset -e\n        \ncat \"${TERRAFORM_OUTPUT_FILE}\"\natmos terraform output \"$INPUT_COMPONENT\" \\\n  --stack \"$INPUT_STACK\" \\\n  \"${base_cmd[@]}\" \\\n  --skip-init -- -json -compact-warnings -no-color  | \\\n  grep -v 'Switched to workspace' | \\\n  awk '$1~/^Warnings:$/ {exit} {print}' | \\\n  grep -v 'WARN detected' 1> \"$VARS_COMPONENT_PATH/output_values.json\"        \n\ncd \"$VARS_COMPONENT_PATH\"\nterraform-docs -c ${GITHUB_ACTION_PATH}/config/tfdocs-config.yaml --output-file ${GITHUB_WORKSPACE}/atmos-apply-summary.md ./\ncd -\n\nsed -i \"s#\\`<sensitive>\\`#![Sensitive](https://img.shields.io/badge/sensitive-c40000?style=for-the-badge)#g\" ${GITHUB_WORKSPACE}/atmos-apply-summary.md\nsed -i \"s#\\`\\\"#\\`#g\" ${GITHUB_WORKSPACE}/atmos-apply-summary.md\nsed -i \"s#\\\"\\`#\\`#g\" ${GITHUB_WORKSPACE}/atmos-apply-summary.md\nsed -i \"s#|--#|:-#g\" ${GITHUB_WORKSPACE}/atmos-apply-summary.md\n\ncat \"${GITHUB_WORKSPACE}/atmos-apply-summary.md\" >> $GITHUB_STEP_SUMMARY\n\nif [[ \"${TERRAFORM_RESULT}\" == \"0\" ]]; then\n  echo \"status=succeeded\" >> $GITHUB_OUTPUT\n  echo \"Terraform apply executed successfully\"\nelse\n  echo \"status=failed\" >> $GITHUB_OUTPUT\n  echo \"Terraform apply failed\"\nfi\n\n# Link to a job that executed this action\necho \"[Job](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID_VAL)\" >> \"${GITHUB_WORKSPACE}/atmos-apply-summary.md\"\n\nrm -f ${TERRAFORM_OUTPUT_FILE}\n\nexit $TERRAFORM_RESULT\n"
