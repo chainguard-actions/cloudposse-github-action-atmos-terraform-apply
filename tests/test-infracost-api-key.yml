@@ -1,14 +1,14 @@
-name: Test Atmos Terraform Apply - Infracost Input
+name: Test Atmos Terraform Apply - Infracost API Key
 on:
   workflow_dispatch:
 
 jobs:
-  test-infracost:
+  test-infracost-api-key:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run action with infracost-api-key input provided
+      - name: Run action with infracost-api-key provided
         id: action
         uses: .
         continue-on-error: true
@@ -31,14 +31,12 @@ jobs:
         run: |
           echo "outcome: $OUTCOME"
           echo "status: $STATUS"
-          # The action is expected to fail gracefully because there is no real
-          # atmos/terraform environment. The important thing is that the
-          # infracost-api-key input was accepted and the action did not crash
-          # due to an unrecognized input.
-          if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action completed successfully"
-          elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (expected without real atmos/terraform env)"
+          # The infracost-api-key input is accepted by the action. Since we don't have
+          # real AWS credentials or a resolvable atmos component/stack, the action may
+          # fail gracefully at the atmos-settings step. Either success or graceful
+          # failure is acceptable — the important thing is the input was passed.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran with infracost-api-key input (outcome: $OUTCOME)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
