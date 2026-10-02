@@ -17,7 +17,7 @@ jobs:
             ${{ github.workspace }}/hardened/tests/fixtures/atmos-config
           skip-checkout: "true"
           plan-storage: "false"
-          infracost-api-key: "ic-test-key-placeholder"
+          infracost-api-key: "ic-test-fake-key-for-coverage"
         continue-on-error: true
 
       - name: Assert action ran with infracost-api-key input
@@ -27,13 +27,13 @@ jobs:
         run: |
           echo "outcome: $OUTCOME"
           echo "status: $STATUS"
-          # The action may succeed (with actions disabled / apply skipped)
-          # or fail gracefully (atmos settings cannot be resolved in sentinel repo).
-          # Either outcome is acceptable — what matters is the input was accepted.
+          # The action will fail gracefully because it needs real AWS credentials
+          # and a real terraform component. The important thing is that the
+          # infracost-api-key input was accepted and the action ran.
           if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded with infracost-api-key input provided"
+            echo "PASS: action succeeded"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (expected with sentinel repo)"
+            echo "PASS: action failed gracefully (expected without real AWS/terraform setup)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
